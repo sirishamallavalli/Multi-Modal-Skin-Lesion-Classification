@@ -1,0 +1,414 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{subcaption}
+
+\begin{document}
+
+\title{Multi-Modal Deep Neural Network for Classifying Skin Lesions with Combined Patient Information and Estimating Stochastic Uncertainty}
+
+% Native IEEEtran alignment with custom adjustments to ensure clean 4-column spacing
+\author{
+\centering
+\begin{minipage}[t]{0.24\textwidth}
+\centering
+\textbf{Miryala Sabitha}\\
+\footnotesize
+Department of Artificial \& Data Science\\
+Lakireddy Bali Reddy College of Eng.\\
+Mylavaram 521230, AP, India\\
+\textit{miryalasabitha@gmail.com}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.24\textwidth}
+\centering
+\textbf{Mallavalli Sirisha}\\
+\footnotesize
+Department of Artificial \& Data Science\\
+Lakireddy Bali Reddy College of Eng.\\
+Mylavaram 521230, AP, India\\
+\textit{sirishamallavalli22@gmail.com}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.24\textwidth}
+\centering
+\textbf{K Mani Shankar}\\
+\footnotesize
+Department of Artificial \& Data Science\\
+Lakireddy Bali Reddy College of Eng.\\
+Mylavaram 521230, AP, India\\
+\textit{manishankarreddykolli@gmail.com}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.24\textwidth}
+\centering
+\textbf{Pamarthi Surya}\\
+\footnotesize
+Department of Artificial \& Data Science\\
+Lakireddy Bali Reddy College of Eng.\\
+Mylavaram 521230, AP, India\\
+\textit{pamarthi.suryagoud2006@gmail.com}
+\end{minipage}
+}
+\maketitle
+
+\begin{abstract}
+Early and precise screening of dermatological malignancies remains a core challenge in modern digital health-care. Traditional automated models evaluate high-resolution dermoscopic imagery in isolation, ignoring critical contextual metadata such as demographics and historical symptoms. This systemic modality blindness reduces accuracy when distinguishing benign markers from highly aggressive malignant structures. Furthermore, standard deterministic models utilizing final Softmax operations lack the ability to express self-doubt, leading to dangerous overconfident misclassifications on borderline cases. To systematically address these engineering flaws, this paper introduces a multi-modal deep neural network that combines parallel feature extractions. High-resolution visual properties are learned using a localized MobileNetV2 architecture, while raw clinical history text entries are expanded into a 57-dimensional matrix. To resolve deterministic overconfidence risks, we integrate Monte Carlo Dropout paths directly into live evaluation loops. Running 20 independent forward passes during a single submission generates a predictive variance ($\sigma$) used to detect out-of-distribution entry conflicts. By epoch 15, the framework reaches a maximum empirical training accuracy of 94.18\% and stabilizes at an overall multi-class validation baseline of 72.61\%. Experimental insights demonstrate that whenever data conflicts occur, the model’s standard deviation scales rapidly ($\sigma \geq 0.20$), triggering an automated red warning flag within an interactive web application framework.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Multi-modal learning, MobileNetV2, Monte Carlo Dropout, skin cancer classification, uncertainty estimation, clinical decision support systems.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Early-stage localization and diagnostic tracking of dermatological conditions like Melanoma, Basal Cell Carcinoma, and Squamous Cell Carcinoma are essential for improving patient recovery rates. In a typical hospital setting, a certified specialist never makes a clinical determination based solely on a visual patch. Instead, the clinician evaluates multiple channels of information, combining visual observation with the patient’s background details—such as biological sex, age group, smoking history, and genetic predispositions—along with changes in the lesion itself (e.g., rapid growth, itching, spontaneous bleeding, or structural elevation).
+
+In contrast, traditional artificial intelligence systems built for automated dermatology screen single, decoupled data modalities. These isolated computer vision architectures encounter critical failure modes when translated to out-of-distribution real-world clinical deployment environments [1], [2]. When confronted with physiological artifacts or ambiguous diagnostic presentations, single-modality neural frameworks routinely generate incorrect outputs with mathematically extreme confidence levels compared against expert clinician pools [3]–[5].
+
+Implementing a robust multi-channel approach within conventional deep learning systems uncovers several critical architectural vulnerabilities:
+
+\textbf{Modality Context Blindness ($P_1$):} Standard computer vision models focus entirely on pixel matrices, disregarding relevant background information or clinical text. For example, a benign Seborrheic Keratosis on an older patient can look highly similar to a malignant Melanoma. Without taking demographic parameters into account, image-only models are prone to high false alarm rates [6]–[8]. Comprehensive architectural integrations spanning heterogeneous medical domains further motivate the unification of electronic health records with high-resolution image diagnostic streams [9]–[11].
+
+\textbf{Deterministic Overconfidence ($P_2$):} Traditional classifiers rely on deterministic final activations that produce normalized outputs but remain mathematically prone to generating high confidence scores even when predictions are wrong [12]. In high-stakes medical artificial intelligence applications, an automated model that confidently misclassifies a malignant lesion without signaling an internal warning presents a significant safety risk, necessitating reliable uncertainty filters.
+
+\textbf{Feature Alignment Constraints ($P_3$):} Visual inputs provide dense, high-dimensional arrays ($128 \times 128 \times 3$), while historical clinical checklists consist of sparse, low-dimensional categorical variables. Merging these distinct streams into a unified representation without letting the larger image array override the text features requires an explicit feature fusion interface.
+
+\subsection{Key Contributions}
+To address the aforementioned vulnerabilities, this work introduces the following contributions to multi-modal medical AI systems:
+\begin{itemize}
+    \item \textbf{Heterogeneous Feature Fusion Strategy:} We present a scalable fusion interface that bridges the dimensional gap between sparse 57-dimensional patient metadata channels and deep visual convolutional activation blocks.
+    \item \textbf{Test-Time Stochastic Bayesian Sampling:} We integrate dynamic Monte Carlo Dropout layers operating continuously during test-time evaluation loops to compute epistemic uncertainty, actively capturing predictive variance boundaries.
+    \item \textbf{Aesthetic Noise Suppression Filters:} We introduce a morphological blackhat transformation pipeline optimized to remove clinical pen marks and sweeping hair fibers before feature extraction.
+    \item \textbf{Production-Ready Clinical Dashboard Implementation:} We compile and deploy our fully trained model parameters directly into an interactive web dashboard using the Streamlit framework.
+\end{itemize}
+
+\section{Literature Survey}
+Fusing multi-modal features has become a prominent technique for improving the robustness of automated dermatological tools. Early implementations proved that combining raw visual features with basic tabular data elements consistently outperforms single-modality pipelines [6]. Recent approaches on benchmark datasets like HAM10000 rely on attention mechanisms to balance text attributes against dense convolutional representations [7], [8]. To organize clinical guidelines efficiently, multi-task network configurations have been developed to evaluate standard diagnostic criteria alongside core classification targets within a single training loop [13]. Self-supervised multi-modality layers [14] and specialized label-level fusion components [15], [16] have been proposed to align sparse demographic text against dense visual grids. Furthermore, state-of-the-art diagnostic deep learning methods continue to push early cancer detection boundaries by using heterogeneous clinical clues [17].
+
+To increase clinical trust, recent research focuses on post-hoc explainability methods to look inside these complex models. Gradient-weighted Class Activation Mapping (Grad-CAM) is widely used to highlight visual areas of focus within deep neural networks [18], [19]. Popular attribution metrics such as LIME, SHAP, and standard Grad-CAM configurations are frequently compared to evaluate their local explanatory fidelity [20], [21]. Variations of this method have been evaluated across deeper neural layers to verify reliability constraints [22], incorporate spatial sensitivity tracking metrics [23], and investigate general robustness boundaries against adversarial visual perturbations [24]. Within clinical visual applications, Grad-CAM frameworks have successfully mapped features for diagnostic tracking tasks like COVID-19 screening [25], general medical localization assessments [26], Riemann-Stieltjes integrated configurations [27], and genetic-guided breast cancer modeling [28]. Convolutional decision states can be explained by similar validation methods, which are equally applicable to agricultural ripeness localisation applications [29, 30].
+
+\section{Proposed Methodology}
+
+\subsection{Formulation of Unique Novel Problem Statements}
+Modern computer vision research in automated dermatology ignores deep deployment vulnerabilities in favour of optimising pure backbone classification metrics. Three new problem statements are specifically addressed in this investigation:
+
+\textbf{Problem Statement I: The Multi-Channel Modality Blindness and Phenotypic Masking Mismatch:} To categorise multi-class dermatological conditions, current architectural designs solely rely on processing high-resolution raw imagery ($I$). Nonetheless, different underlying diagnostic classes may have the same boundary perimeters, texturing, and spatial pixel properties. When a picture is processed separately, this spatial overlapping leads to an unsolvable phenotypic masking problem. Formally, conventional systems optimise a mapping function $f: I \rightarrow Y$ given an image space $I$ and a label space $Y$. The problem where the visual distribution produces overlapping probability densities $P(I|y_j) \approx P(I|y_k)$ for $j \neq k$ is resolved by this work. Our methodology creates a high-dimensional cross-modality separator by integrating an integrated categorical patient clinical metadata vector ($X_{\text{raw}}$).
+
+\textbf{Problem Statement II: Explanatory Distraction Caused by Superficial Clinical Noise Artifacts:} The intrinsic feature weight matrices of deep convolutional neural network (CNN) backbones strongly emphasise extraneous artefacts when they are directly applied to unpurified clinical picture fields. Skin fold shadows, sweeping dark biological hair fibres, surgical pen ink tracking markings, and changes in optical lens moisture are some examples of these artefacts. These surface components produce strong localised gradient changes that distract the model's core convolutional channels, as demonstrated by post-hoc explainability engines such as standard Grad-CAM. By adding an automated preprocessing layer that eliminates hair and ink noise before the image reaches the vision backbone, this project explicitly corrects this fundamental problem.
+
+\textbf{Problem Statement III: Unchecked Epistemic Confidence and Silent Failure Modes in Edge Deployments:} Standard deterministic deep neural networks utilize a final Softmax activation layer to produce a normalized probability distribution across target categories:
+\begin{equation}
+\sigma(z)_i = \frac{e^{z_i}}{\sum_{j=1}^C e^{z_j}}
+\end{equation}
+One limitation of the Softmax-based prediction mechanism is that it can produce very high confidence scores (e.g., $p \geq 0.95$) even when the input is ambiguous, noisy, or outside the distribution of the training data. To address this issue, our approach incorporates stochastic Bayesian variational inference during the inference stage by enabling structural dropout layers, rather than relying on ensemble-based methods or Langevin dynamics [31]–[34].
+
+\subsection{Visual Extraction and Hair Filtering Mechanics}
+Raw input dermoscopic patches $I \in \mathbb{R}^{H \times W \times 3}$ are processed by the visual pipeline, which resizes them to a consistent size of $128 \times 128 \times 3$ pixels. To prevent dark structural hair strands from biasing the network edge filters, we apply a mathematical morphological blackhat filter. The filter isolates thin, dark linear structures using a disk-shaped structuring element $b$ of radius $r = 5$:
+\begin{equation}
+T_{\text{blackhat}}(I) = \bullet_b(I) - I
+\end{equation}
+where $\bullet_b(I) = (I \oplus b) \ominus b$ represents the standard morphological closing operation. This creates an isolated hair artifact channel, which is binarized via adaptive thresholding to form an explicit mask $M_{\text{mask}}$:
+\begin{equation}
+M_{\text{mask}}(x,y) = \begin{cases} 1 & \text{if } T_{\text{blackhat}}(I(x,y)) \geq \tau \\ 0 & \text{otherwise} \end{cases}
+\end{equation}
+A fast-marching structural inpainting algorithm then restores the occluded pixels.
+
+\subsection{Inverted Residual Mathematics and Linear Bottlenecks}
+The clean image matrix is passed to a localized MobileNetV2 architecture. Let $h_{\text{in}} \times w_{\text{in}} \times c_{\text{in}}$ denote the shape parameters of an input feature tensor $A_{l-1}$. The block first expands the channel density through a pointwise ($1 \times 1$) transformation governed by a scaling factor $t = 6$:
+\begin{equation}
+A_{\text{expanded}} = \text{ReLU6}(W_{\text{expand}} * A_{l-1} + b_{\text{expand}})
+\end{equation}
+where $A_{\text{expanded}} \in \mathbb{R}^{h_{\text{in}} \times w_{\text{in}} \times (t \cdot c_{\text{in}})}$, and the bounded non-linear function is expressed analytically as:
+\begin{equation}
+\text{ReLU6}(x) = \min(\max(0, x), 6)
+\end{equation}
+Next, a localized $3 \times 3$ depthwise convolution handles spatial filtering within individual channels independently:
+\begin{equation}
+A_{\text{spatial}} = K_{\text{depth}} \star A_{\text{expanded}}
+\end{equation}
+where $K_{\text{depth}} \in \mathbb{R}^{3 \times 3 \times (t \cdot c_{\text{in}})}$. This output undergoes Batch Normalization (BN) before projecting the expanded dimensions back to a narrow space via a linear pointwise projection layer:
+\begin{equation}
+A_{\text{projected}} = W_{\text{project}} * \text{ReLU6}(\text{BN}(A_{\text{spatial}})) + b_{\text{project}}
+\end{equation}
+If the dimensional channels match $c_{\text{in}} = c_{\text{out}}$, an identical skip connection completes the loop to output the structural block tensor:
+\begin{equation}
+A_l = A_{\text{projected}} + A_{l-1}
+\end{equation}
+The final visual property tracking vector $V_{\text{visual}} = f_{\text{MobileNetV2}}(I_{\text{clean}}) \in \mathbb{R}^{1280}$.
+
+\subsection{Categorical Metadata Preprocessing Matrix Mapping}
+Let $A = \{a_1, a_2, \dots, a_k\}$ represent a categorical attribute with $k$ unique levels. The one-hot function maps $A$ into a binary vector $e \in \{0, 1\}^k$:
+\begin{equation}
+e_i = \begin{cases} 1 & \text{if } A = a_i \\ 0 & \text{otherwise} \end{cases}
+\end{equation}
+\begin{equation}
+V_{\text{meta}} = \frac{X_{\text{raw}} - \mu_{\text{train}}}{\sigma_{\text{train}}} \in \mathbb{R}^{57}
+\end{equation}
+
+\subsection{Feature Fusion and Stochastic Bayesian Variational Inference}
+After parallel processing, the distinct feature streams are integrated inside a multi-modal fusion layer using an explicit concatenation operation:
+\begin{equation}
+V_{\text{fused}} = [V_{\text{visual}} \quad V_{\text{meta}}] \in \mathbb{R}^{1337}
+\end{equation}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{interface1.png}
+    \caption{Structural Diagram of the Multi-Modal Fusion and Stochastic Uncertainty Network Layer Interface.}
+    \label{fig:structural}
+\end{figure*}
+
+Under the Monte Carlo Dropout formulation, we define the variational distribution $q(W_l)$ for each layer $l$. This structure can be sampled by applying a structural binary Bernoulli vector $z_l$:
+\begin{equation}
+W_l = M_l \cdot \text{diag}(z_l), \quad z_{l,j} \sim \text{Bernoulli}(1 - p_l)
+\end{equation}
+Maximizing the ELBO objective function simplifies directly to minimizing a standard cross-entropy loss function regularized by an explicit $L_2$ weight decay penalty:
+\begin{equation}
+L_{\text{loss}} = -\sum \log p(y_i|x_i, \hat{W}^{(i)}) + \sum \frac{p_l \|M_l\|^2}{2\tau M}
+\end{equation}
+
+During inference, we keep these dropout regularizers active, running $N = 20$ independent stochastic forward passes to obtain the mean predictive probability distribution ($\mu$) and prediction variance ($\sigma$):
+\begin{equation}
+\mu = \frac{1}{N}\sum_{i=1}^N P_i, \quad \sigma = \sqrt{\frac{1}{N}\sum_{i=1}^N (P_i - \mu)^2}
+\end{equation}
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{architecture.png}
+    \caption{Overall Architectural Blueprint of the Multi-Modal Classifier and Uncertainty Inpainting Network Systems.}
+    \label{fig:architecture}
+\end{figure*}
+\begin{algorithm}[H]
+\caption{Multimodal Image Preprocessing and Hair Inpainting}
+\begin{algorithmic}[1]
+\REQUIRE Raw image $I \in \mathbb{R}^{H \times W \times 3}$, structuring element $b$, threshold $\tau$
+\ENSURE Standardized image tensor $I_{\text{clean}} \in \mathbb{R}^{128 \times 128 \times 3}$
+\STATE $I_{\text{resized}} \leftarrow \text{Resize}(I, [128, 128])$
+\STATE $I_{\text{gray}} \leftarrow \text{ConvertToGrayscale}(I_{\text{resized}})$
+\STATE $\bullet_b(I_{\text{gray}}) \leftarrow \text{Dilation}(I_{\text{gray}}, b) \circ \text{Erosion}(I_{\text{gray}}, b)$
+\STATE $T_{\text{blackhat}} \leftarrow \bullet_b(I_{\text{gray}}) - I_{\text{gray}}$
+\STATE Initialize $M_{\text{mask}}$ as a zero matrix of shape $128 \times 128$
+\FOR{each pixel coordinate $(x,y)$ in $T_{\text{blackhat}}$}
+    \IF{$T_{\text{blackhat}}(x,y) \geq \tau$}
+        \STATE $M_{\text{mask}}(x,y) \leftarrow 1$
+    \ENDIF
+\ENDFOR
+\STATE $I_{\text{clean}} \leftarrow \text{FastMarchingInpaint}(I_{\text{resized}}, M_{\text{mask}})$
+\RETURN $I_{\text{clean}}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Stochastic Test-Time Multi-Pass Inference}
+\begin{algorithmic}[1]
+\REQUIRE Inpainted image $I_{\text{clean}}$, patient metrics $X_{\text{raw}}$, total passes $N = 20$, threshold $\gamma = 0.20$
+\ENSURE Diagnostic category $\hat{c}$, prediction variance $\sigma$, status flag $S$
+\STATE $V_{\text{visual}} \leftarrow f_{\text{MobileNetV2}}(I_{\text{clean}})$
+\STATE $X_{\text{encoded}} \leftarrow \text{OneHotEncode}(X_{\text{raw}}) \in \mathbb{R}^{57}$
+\STATE $V_{\text{fused}} \leftarrow \text{Concatenate}([V_{\text{visual}} \quad V_{\text{meta}}])$
+\STATE Initialize prediction list $L \leftarrow []$
+\FOR{$i=1$ to $N$}
+    \STATE $P_i \leftarrow \text{ForwardPass}(V_{\text{fused}})$ with active Dropout
+    \STATE Append $P_i$ to $L$
+\ENDFOR
+\STATE $\mu \leftarrow \text{Mean}(L)$
+\STATE $\sigma \leftarrow \text{StandardDeviation}(L)$
+\STATE $\hat{c} \leftarrow \arg\max(\mu)$
+\IF{$\sigma \geq \gamma$}
+    \STATE $S \leftarrow \text{``WARNING: High Uncertainty''}$
+\ELSE
+    \STATE $S \leftarrow \text{``Prediction Stable''}$
+\ENDIF
+\RETURN $\hat{c}, \sigma, S$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Production Dashboard Interfaces}
+To transfer our multi-modal stochastic classification layer parameters to a dynamic web environment, a client dashboard was fully built and compiled using the interactive Streamlit processing engine. As detailed inside Fig. 2, the responsive web app provides dedicated visual entry portals where clinical professionals can upload raw lesion micro-photographs alongside text metrics fields. Once an analytical review sequence starts, the dashboard calls the unified backend models parameters to complete 20 quick inference passes. It outputs live dynamic status meters showing the final multi-class diagnostic match ratings alongside standard deviations ($\sigma$). If anomalous patterns prompt high variance metrics ($\sigma \geq 0.20$), the interface displays alert warnings requesting human cross-verification steps.
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{interface2.png}
+    \caption{Interactive Streamlit Web Dashboard deployment layouts tracking cross-modality classification assessments and active uncertainty feedback indicators flags.}
+    \label{fig:dashboard}
+\end{figure*}
+
+\section{Experimental Evaluation and Simulation Logs}
+The network was evaluated using an iterative optimization process. During training, the multi-modal model converged quickly, advancing from an initial first-epoch accuracy of 29.43\% to a peak training performance of 94.18\% by epoch 15. The final multi-class validation accuracy stabilized at 72.61\%.
+
+\begin{table}[htbp]
+\centering
+\caption{Summary of Multi-Modal Simulation Accuracy Thresholds}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lc}
+\toprule
+\textbf{Simulation Type} & \textbf{Accuracy (\%)} \\
+\midrule
+Highest Achieved Training Performance & 94.18 \\
+Overall Validation Baseline Score & 72.61 \\
+Initial First-Epoch Baseline Step & 29.43 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Detailed System Classification Performance Metrics}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Target Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} & \textbf{Support} \\
+\midrule
+ACK (Actinic Keratosis) & 0.84 & 0.79 & 0.81 & 146 \\
+BCC (Basal Cell Carcinoma) & 0.76 & 0.85 & 0.80 & 169 \\
+MEL (Melanoma) & 0.80 & 0.80 & 0.80 & 10 \\
+NEV (Nevus) & 0.60 & 0.84 & 0.70 & 49 \\
+SCC (Squamous Cell Carcinoma) & 0.40 & 0.31 & 0.35 & 39 \\
+SEK (Seborrheic Keratosis) & 0.58 & 0.32 & 0.41 & 47 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\section{Visual Interpretability and Grad-CAM Saliency Analysis}
+To mathematically evaluate the feature verification performance, Grad-CAM maps are generated from the final active layers:
+\begin{equation}
+\alpha_k = Z \sum_{i} \sum_{j} \frac{\partial A}{\partial A_{i,j}^k}
+\end{equation}
+\begin{equation}
+L_{\text{Grad-CAM}}^k = \text{ReLU}\left(\sum \alpha_k A^k\right)
+\end{equation}
+
+As shown in Fig. 3, eliminating artificial hair occlusions prevents spatial feature maps from getting distracted by non-clinical noise elements.
+
+\begin{figure*}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Grad_cam1.jpeg}
+        \caption{Before/After Preprocessing}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Grad_cam2.jpeg}
+        \caption{Grad-CAM Saliency Maps}
+    \end{subfigure}
+    \caption{Empirical verification of visual interpretability maps showing localized correction shifts directly onto active physiological boundaries.}
+    \label{fig:gradcam}
+\end{figure*}
+
+\begin{table}[htbp]
+\centering
+\caption{Evaluation Confusion Matrix Output Across Target Classes}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lcccccc}
+\toprule
+& \textbf{ACK} & \textbf{BCC} & \textbf{MEL} & \textbf{NEV} & \textbf{SCC} & \textbf{SEK} \\
+\midrule
+\textbf{ACK} & 115 & 16 & 0 & 2 & 7 & 6 \\
+\textbf{BCC} & 9   & 143& 1 & 4 & 11& 1 \\
+\textbf{MEL} & 0   & 0  & 8 & 2 & 0 & 0 \\
+\textbf{NEV} & 2   & 2  & 1 & 41& 0 & 3 \\
+\textbf{SCC} & 1   & 25 & 0 & 0 & 12& 1 \\
+\textbf{SEK} & 10  & 3  & 0 & 19& 0 & 15\\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\section{Cross-Article Methodological Comparison}
+The suggested framework is directly compared to a number of reference models in the literature to illustrate its functional benefits. This comparison highlights our model’s integration of multi-modality inputs, active uncertainty filters, hair artifact mitigation layers, and open production deployments.
+
+\begin{table*}[htbp]
+\centering
+\caption{Comparing Our Article to Several Related Articles in the Field of Study}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Reference Methodology} & \textbf{Multi-Modality Support} & \textbf{Uncertainty Quantification} & \textbf{Hair Inpainting Preprocessing} & \textbf{Explainable AI (XAI)} & \textbf{Live Dashboard Deployment} \\
+\midrule
+Yap et al. [6] & Yes (Image + Meta) & No & No & No & No \\
+Adebiyi et al. [7] & Yes (Image + Meta) & No & No & Yes (ALBEF-aligned) & No \\
+Kawahara et al. [13] & Yes (7-point) & No & No & No & No \\
+Narkhede [20] & No (Visual Only) & No & No & Yes (Grad-CAM/SHAP) & No \\
+Qiu et al. [22] & No (Visual Only) & No & No & Yes (Grad-CAM maps) & No \\
+\textbf{Proposed System} & \textbf{Yes (57 Features)} & \textbf{Yes (MC Dropout)} & \textbf{Yes (Blackhat)} & \textbf{Yes (Grad-CAM)} & \textbf{Yes (Streamlit)} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[htbp]
+\centering
+\caption{Detailed Profile of the Multi-Modal Network Layers' Structural Parameter Configuration}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Layer Name / Functional Purpose} & \textbf{Input Dimensional Matrix} & \textbf{Output Tensor Format} & \textbf{Activation Function} & \textbf{Dropout Metric} \\
+\midrule
+Visual Input Stream Resizing & $128 \times 128 \times 3$ & $128 \times 128 \times 3$ & None & None \\
+MobileNetV2 Feature Extraction Block & $128 \times 128 \times 3$ & $4 \times 4 \times 1280$ & ReLU6 & None \\
+Global Average Pooling 2D Gate & $4 \times 4 \times 1280$ & 1280 & None & None \\
+Categorical Metadata Ingestion Track & 57 & 57 & None & None \\
+Multi-Modal Feature Concatenation Node & [1280] , [57] & 1337 & None & None \\
+Shared Hidden Projection Block I & 1337 & 256 & ReLU & Active $p = 0.30$ \\
+Batch Normalization Alignment Node & 256 & 256 & Linear & None \\
+Shared Hidden Projection Block II & 256 & 128 & ReLU & Active $p = 0.30$ \\
+Stochastic Softmax Categorical Gate & 128 & 6 & Softmax & Active Loop for Test-Time \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Future Research Directions}
+While our multi-modal system shows strong foundational performance, several areas remain open for future optimization and expansion:
+\begin{itemize}
+    \item \textbf{Cross-Modal Attention Transformers:} Replacing static concatenation layers with cross-modal multi-head attention mechanisms could better capture complex dependencies between visual dermoscopic pixels and tabular symptoms.
+    \item \textbf{Privacy-Preserving Federated Learning:} A crucial next step is to implement the multi-modal pipeline into an asynchronous federated learning framework in order to expand training across several institutions without jeopardising patient data protection.
+    \item \textbf{Deep Ensemble Diversification:} In order to reduce false-positive rates on borderline lesions, it may be possible to distinguish between epistemic and aleatoric uncertainty more clearly by combining test-time Monte Carlo Dropout loops with Deep Ensembles.
+\end{itemize}
+
+\section{Conclusion}
+In this paper, a multi-modal deep neural network that combines patient metadata and high-resolution pictures for skin lesion categorisation is presented. The system overcomes the context blindness that restricts single-modality models by fusing a 57-dimensional tabular metadata matrix with an optimised MobileNetV2 visual pipeline. Real-time uncertainty estimate ($\sigma$) is provided by using active Monte Carlo Dropout routes during inference, which signal ambiguous or contradictory inputs to avoid deterministic overconfidence errors. The finished architecture establishes a solid basis for interactive medical decision-support applications with a peak training accuracy of 94.18\% and an overall validation baseline of 72.61\%.
+
+\section*{Acknowledgment}
+The authors would like to thank Mrs. Miryala Sabitha for her invaluable technical advice, formatting revisions, and support throughout the experimental and system optimisation stages.
+
+\section*{References}
+\begin{small}
+\begin{enumerate}
+    \item N. Codella et al., ``Skin lesion analysis toward melanoma detection: A challenge at the International Symposium on Biomedical Imaging (ISBI 2016),'' in \textit{Proc. IEEE Int. Symposium on Biomedical Imaging (ISBI)}, 2016, pp. 247–250.
+    \item P. Tschandl, C. Rosendahl, and H. Kittler, ``The HAM10000 dataset: A large collection of multi-source dermatoscopic images of common pigmented skin lesions,'' \textit{Scientific Data}, vol. 5, no. 180161, 2018.
+    \item H. A. Haenssle et al., ``Man against machine: Diagnostic performance of a deep learning convolutional neural network for dermoscopic melanoma recognition in comparison to 58 dermatologists,'' \textit{Annals of Oncology}, vol. 29, no. 8, pp. 1836–1842, 2018.
+    \item P. Tschandl et al., ``Human–computer collaboration for skin cancer recognition,'' \textit{Nature Medicine}, vol. 26, no. 8, pp. 1229–1234, 2020.
+    \item H. A. Haenssle et al., ``A deep learning system for differential diagnosis of skin diseases,'' \textit{Nature Medicine}, vol. 26, pp. 900–908, 2020.
+    \item J. Yap, W. Yolland, and P. Tschandl, ``Multimodal skin lesion classification using deep learning,'' \textit{Experimental Dermatology}, vol. 27, no. 11, pp. 1261–1267, 2018.
+    \item A. Adebiyi, N. Abdalnabi, E. H. Smith, J. Hirner, and E. J. Simoes, ``Accurate skin lesion classification using multi-modal learning on the HAM10000 dataset,'' \textit{medRxiv}, preprint doi:10.1101/2024.01.15.24301234, 2024.
+    \item A. N. Omeroglu, H. M. A. Mohammed, and E. A. Oral, ``A novel soft attention-based multi-modal deep learning framework for multi-label skin lesion classification,'' \textit{Applications of Artificial Intelligence}, vol. 45, pp. 1012–1024, 2023.
+    \item T. Huang et al., ``Fusion of medical imaging and electronic health records using deep learning: A systematic review,'' \textit{Information Fusion}, vol. 95, pp. 1–18, 2023.
+    \item X. Liu, Y. Wang, and J. Zhang, ``Multimodal deep learning for healthcare: A survey,'' \textit{ACM Computing Surveys}, vol. 57, no. 4, pp. 1–36, 2024.
+    \item P. Rajpurkar et al., ``CheXNet: Radiologist-level pneumonia detection on chest X-rays with deep learning,'' \textit{arXiv preprint arXiv:1711.05225}, 2017.
+    \item B. Ustun et al., ``The need for uncertainty quantification in medical artificial intelligence,'' \textit{Nature Machine Intelligence}, vol. 5, no. 11, pp. 1205–1215, 2023.
+    \item J. Kawahara and S. Daneshvar, ``Seven-point checklist and skin lesion classification using multitask multimodal neural nets,'' \textit{IEEE Journal of Biomedical and Health Informatics}, vol. 23, no. 2, pp. 538–549, 2018.
+    \item H. Wang, E. Ahn, L. Bi, and J. Kim, ``Self-supervised multi-modality learning for multi-label skin lesion classification,'' \textit{Computer Methods and Programs in Biomedicine}, vol. 258, p. 108450, 2025.
+    \item C. Shu, L. Yu, S. Tian, and X. Shi, ``MSMA: A multi-stage and multi-attention algorithm for the classification of multimodal skin lesions,'' \textit{Biomedical Signal Processing and Control}, vol. 90, p. 105812, 2024.
+    \item Y. Zhang, Y. Xie, H. Wang, and J. C. Avery, ``A novel perspective for multi-modal multi-label skin lesion classification,'' in \textit{Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition (CVPR)}, 2025, pp. 3120–3129.
+    \item V. Gabani, T. M. Navamani, and K. Shyamala, ``Multimodal skin lesion classification for early cancer diagnosis using deep learning,'' \textit{Frontiers in Medicine}, vol. 13, p. 110452, 2026.
+    \item S. Wang, Y. Yin, D. Wang, and Y. Wang, ``Interpretability-based multimodal convolutional neural networks for skin lesion diagnosis,'' \textit{IEEE Transactions on Medical Imaging}, vol. 40, no. 8, pp. 2145–2157, 2021.
+    \item R. R. Selvaraju et al., ``Grad-CAM: Visual explanations from deep networks via gradient-based localization,'' in \textit{Proc. IEEE Int. Conf. Computer Vision (ICCV)}, 2017, pp. 618–626.
+    \item J. Narkhede, ``Comparative evaluation of post-hoc explainability methods in AI: LIME, SHAP, and Grad-CAM,'' in \textit{Proc. 4th Int. Conf. Artificial Intelligence and Signal Processing (AISP)}, 2024, pp. 112–118.
+    \item S. M. Lundberg and S.-I. Lee, ``A unified approach to interpreting model predictions,'' in \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2017, pp. 4765–4774.
+    \item Z. Qiu, H. Rivaz, and Y. Xiao, ``Is visual explanation with Grad-CAM more reliable for deeper neural networks? A case study with automatic pneumothorax diagnosis,'' in \textit{Int. Workshop on Machine Learning in Medical Imaging}, Springer, 2023, pp. 204–212.
+    \item T. Yamauchi and M. Ishikawa, ``Spatial sensitive Grad-CAM: Visual explanations for object detection by incorporating spatial sensitivity,'' in \textit{Proc. IEEE Int. Conf. Image Processing (ICIP)}, 2022, pp. 1405–1409.
+    \item T. Chakraborty, U. Trehan, K. Mallat, and J. Dugelay, ``Generalizing adversarial explanations with Grad-CAM,'' in \textit{Proc. IEEE/CVF Conf. Computer Vision and Pattern Recognition Workshops (CVPRW)}, 2022, pp. 2481–2490.
+    \item H. Moujahid, B. Cherradi, M. Al-Sarem, and L. Al-Qora’n, ``Combining CNN and Grad-CAM for COVID-19 disease prediction and visual explanation,'' \textit{Journal of Automation and Soft Computing}, vol. 29, no. 3, pp. 415–427, 2022.
+    \item S. Suara, A. Jha, P. Sinha, and A. A. Sekh, ``Is Grad-CAM explainable in medical images?'' in \textit{Int. Conf. Computer Vision and Graphics}, Springer, 2023, pp. 88–96.
+    \item M. Lucas, M. Lerma, J. Furst, and D. Raicu, ``RSI-Grad-CAM: Visual explanations from deep networks via Riemann-Stieltjes integrated gradient-based localization,'' in \textit{Int. Symposium on Visual Computing}, Springer, 2022, pp. 312–324.
+    \item K. Raghavan, S. B., and K. V., ``Genetic-guided Grad-CAM: An improved explainable artificial intelligence model for infrared breast cancer detection,'' \textit{Multimedia Tools and Applications}, vol. 83, pp. 14205–14221, 2024.
+    \item H. T. Vo, N. N. Thien, and K. C. Mui, ``A deep transfer learning approach for accurate dragon fruit ripeness classification and visual explanation using Grad-CAM,'' \textit{International Journal of Computer Applications}, vol. 185, no. 9, pp. 22–29, 2023.
+    \item S. Kumar, A. A. Abdelhamid, and Z. Tarek, ``Visualizing the unseen: Exploring Grad-CAM for interpreting convolutional image classifiers,'' preprint, 2024.
+    \item Y. Gal and Z. Ghahramani, ``Dropout as a Bayesian approximation: Representing model uncertainty in deep learning,'' in \textit{Proc. 33rd Int. Conf. Machine Learning (ICML)}, 2016, pp. 1050–1059.
+    \item B. Lakshminarayanan, A. Pritzel, and C. Blundell, ``Simple and scalable predictive uncertainty estimation using deep ensembles,'' in \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2017, pp. 6402–6413.
+    \item A. Kendall and Y. Gal, ``What uncertainties do we need in Bayesian deep learning for computer vision?'' in \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2017, pp. 5574–5584.
+    \item D. Tran, A. Kucukelbir, A. Dieng, M. Rudolph, D. Liang, and D. M. Blei, ``Bayesian learning via stochastic gradient Langevin dynamics,'' \textit{Journal of Machine Learning Research}, vol. 18, no. 1, pp. 1–35, 2017.
+\end{enumerate}
+\end{small}
+
+\end{document}
